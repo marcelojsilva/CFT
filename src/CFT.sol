@@ -19,9 +19,6 @@ contract CFT {
         uint256 totalMinutesConsumed; // Total minutes consumed for running the virtual machine
     }
 
-
-
-
     // Mapping from VM ID to VirtualMachine struct
     mapping(uint256 => VirtualMachine) public virtualMachines;
 
