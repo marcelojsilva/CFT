@@ -3,11 +3,8 @@
 pragma solidity 0.8.20;
 
 interface ERC20 {
-
     function transferFrom(address _from, address _to, uint256 _value) external returns (bool success);
-
     function transfer(address _to, uint256 _value) external returns (bool success);
-
     function balanceOf(address _owner) external view returns (uint256 balance);
 }
 
@@ -16,13 +13,9 @@ contract CFT {
     // Struct to represent a virtual machine
     struct VirtualMachine {
         address owner; // Owner of the virtual machine
-
         address currentOperator; // Current operator of the virtual machine
-
         bool isRunning; // Indicates whether the virtual machine is running
-
         uint256 startTime; // Timestamp when the virtual machine was started
-
         uint256 totalMinutesConsumed; // Total minutes consumed for running the virtual machine
     }
 
@@ -66,8 +59,6 @@ contract CFT {
     constructor(address _tokenAddress) {
         tokenAddress = _tokenAddress;
     }
-
-
 
     // Function to create a virtual machine
     function createVirtualMachine() external returns (uint256) {
