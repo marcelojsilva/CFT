@@ -75,6 +75,9 @@ contract CFT {
     function startVirtualMachine(uint256 vmId) external onlyOwnerOrOperator(vmId) {
         require(!virtualMachines[vmId].isRunning, "Virtual machine is already running");
 
+        // Ensure user has enough minute credits convert to 18 decimals
+        require(virtualMachines[vmId].totalMinutesConsumed * 10 ** 18 < userMinuteCredits[msg.sender], "Insufficient minute credits");
+
         // Ensure user has enough minute credits
         require(userMinuteCredits[msg.sender] > 0, "Insufficient minute credits");
 
