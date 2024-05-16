@@ -3,11 +3,10 @@ pragma solidity ^0.8.20;
 
 import "forge-std/Test.sol";
 import "../src/CFT.sol";
-import "../src/ERC20.sol";
 
 contract CFTTest is Test {
     CFT private cft;
-    ERC20 private erc20;
+    ERC20Mock private erc20;
     address private owner;
     address private user;
     uint256 private vmId;
@@ -17,7 +16,7 @@ contract CFTTest is Test {
         user = address(0x1);
 
         // Deploy a mock ERC20 token and CFT contract
-        erc20 = new ERC20Mock();
+        erc20 = new ERC20Mock("CFT", "CFT");
         cft = new CFT(address(erc20));
 
         // Set initial balances
@@ -95,5 +94,37 @@ contract CFTTest is Test {
         // Attempt to stop the virtual machine that is not running
         vm.prank(owner);
         cft.stopVirtualMachine(vmId);
+    }
+}
+
+// Mock ERC20 token for testing purposes
+contract ERC20Mock is ERC20 {
+    mapping(address => uint256) public override balanceOf;
+    mapping(address => mapping(address => uint256)) public allowances;
+
+    function transferFrom(address _from, address _to, uint256 _value) external override returns (bool success) {
+        require(balanceOf[_from] >= _value, "Insufficient balance");
+        require(allowances[_from][msg.sender] >= _value, "Insufficient allowance");
+        balanceOf[_from] -= _value;
+        balanceOf[_to] += _value;
+        allowances[_from][msg.sender] -= _value;
+        return true;
+    }
+
+    function transfer(address _to, uint256 _value) external override returns (bool success) {
+        address _from = msg.sender;
+        require(balanceOf[_from] >= _value, "Insufficient balance");
+        balanceOf[_from] -= _value;
+        balanceOf[_to] += _value;
+        return true;
+    }
+
+    function approve(address _spender, uint256 _value) public returns (bool success) {
+        allowances[msg.sender][_spender] = _value;
+        return true;
+    }
+
+    function setBalance(address _owner, uint256 _balance) public {
+        balanceOf[_owner] = _balance;
     }
 }
