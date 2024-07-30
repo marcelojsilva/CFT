@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import '@openzeppelin/contracts/utils/Counters.sol';
 import './C3VirtualMachinePricing.sol';
 
 interface ERC20 {
@@ -15,8 +14,6 @@ interface ERC20 {
  * @dev This contract manages the creation and pricing of virtual machines, utilizing ERC20 tokens for payment.
  */
 contract C3VirtualMachine {
-    using Counters for Counters.Counter;
-
     struct VirtualMachine {
         address vmOwner; // Owner of the virtual machine
         uint256 vmType; // Type of the virtual machine
@@ -25,9 +22,10 @@ contract C3VirtualMachine {
         uint256 pricePerHour; // Price per hour of the virtual machine
     }
 
-    Counters.Counter private nextId;
     address public tokenAddress;
     address public vmPricing;
+    uint256 private nextId;
+
     mapping(uint256 => VirtualMachine) public virtualMachines;
     mapping(address => uint256[]) private ownerToVms; // Mapping from owner to their VMs
     mapping(address => uint256) public userCredits;
@@ -53,6 +51,7 @@ contract C3VirtualMachine {
      * @param _vmPricing The address of the C3VirtualMachinePricing contract.
      */
     constructor(address _tokenAddress, address _vmPricing) {
+        nextId = 0;
         tokenAddress = _tokenAddress;
         vmPricing = _vmPricing;
     }
@@ -77,9 +76,9 @@ contract C3VirtualMachine {
         address sender = msg.sender;
         require(userCredits[sender] >= creditsToConsume, "Insufficient balance to start virtual machine");
 
-        nextId.increment();
-        uint256 vmId = nextId.current();
-        virtualMachines[vmId] = VirtualMachine({
+        nextId += 1;
+
+        virtualMachines[nextId] = VirtualMachine({
             vmOwner: sender,
             vmType: vmType,
             startTime: block.timestamp,
@@ -88,11 +87,11 @@ contract C3VirtualMachine {
         });
 
         userCredits[sender] -= creditsToConsume;
-        ownerToVms[sender].push(vmId); // Update owner to VMs mapping
+        ownerToVms[sender].push(nextId); // Update owner to VMs mapping
 
-        emit VirtualMachineCreated(vmId, sender);
+        emit VirtualMachineCreated(nextId, sender);
 
-        return vmId;
+        return nextId;
     }
 
     /**
