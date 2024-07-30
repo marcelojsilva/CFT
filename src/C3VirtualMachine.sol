@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import './C3VirtualMachinePricing.sol';
 
-interface ERC20 {
+interface IERC20 {
     function transferFrom(address _from, address _to, uint256 _value) external returns (bool success);
     function transfer(address _to, uint256 _value) external returns (bool success);
     function balanceOf(address _owner) external view returns (uint256 balance);
@@ -107,7 +107,7 @@ contract C3VirtualMachine {
      * @param amount The amount of tokens to deposit
      */
     function depositTokens(uint256 amount) external {
-        ERC20 token = ERC20(tokenAddress);
+        IERC20 token = IERC20(tokenAddress);
         require(token.transferFrom(msg.sender, address(this), amount), "Token transfer failed");
 
         userCredits[msg.sender] += amount;
@@ -120,7 +120,7 @@ contract C3VirtualMachine {
      */
     function withdrawTokens(uint256 amount) external {
         require(userCredits[msg.sender] >= amount, "Insufficient balance to withdraw");
-        ERC20 token = ERC20(tokenAddress);
+        IERC20 token = IERC20(tokenAddress);
         require(token.transfer(msg.sender, amount), "Token transfer failed");
 
         userCredits[msg.sender] -= amount;
