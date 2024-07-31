@@ -21,7 +21,7 @@ contract CFTTest is Test {
         c3VMPricing = new C3VirtualMachinePricing();
 
         // Create a virtual machine type
-        c3VMPricing.createVirtualMachineType(1, "Basic", 10 wei);
+        c3VMPricing.createVirtualMachineType(1, "Basic", 100 wei);
 
         c3u = new C3U();
 
@@ -45,12 +45,67 @@ contract CFTTest is Test {
         assertEq(userCredits, 1000 wei, "User credits should be 1000");
     }
 
-    function testCreateAndOwnerVirtualMachine() public {
-        uint256 newVmId = c3VM.createVirtualMachine(1, 10);
+    function testCreateVirtualMachine() public {
+        uint256 newVmId = c3VM.createVirtualMachine(1, 5);
         assertEq(newVmId, 1, "New VM ID should be 1");
 
-        (address vmOwner,,,,) = c3VM.virtualMachines(newVmId);
+        (address vmOwner, , , ,) = c3VM.virtualMachines(newVmId);
         assertEq(vmOwner, owner, "VM owner should be the contract creator");
+    
+        uint256 userCredits = c3VM.userCredits(owner);
+        assertEq(userCredits, 1000 - 100 * 5, "User credits should decrease by the price multiplied by the hours");
+
+    }
+    
+    function testDepositTokens() public {
+        uint256 initialCredits = c3VM.userCredits(owner);
+        uint256 depositAmount = 500 wei;
+
+        c3u.approve(address(c3VM), depositAmount);
+        c3VM.depositTokens(depositAmount);
+
+        uint256 newCredits = c3VM.userCredits(owner);
+        assertEq(newCredits, initialCredits + depositAmount, "User credits should increase by deposit amount");
+    }
+
+    function testCannotWithdrawTokens() public {
+        uint256 withdrawAmount = 2000 wei;
+
+        vm.expectRevert("Insufficient balance to withdraw");
+        c3VM.withdrawTokens(withdrawAmount);
+    }
+
+    function testCannotCreateVirtualMachineWithoutSufficientCredits() public {
+        uint256 excessiveHours = 20;
+
+        vm.expectRevert("Insufficient balance to start virtual machine");
+        c3VM.createVirtualMachine(1, excessiveHours);
+    }
+
+    function testToggleVirtualMachineDeprecatedStatus() public {
+        c3VMPricing.toggleVirtualMachineDeprecatedStatus(1);
+        (, , bool deprecated) = c3VMPricing.virtualMachineTypes(1);
+        assertTrue(deprecated, "Virtual machine type should be deprecated");
+
+        c3VMPricing.toggleVirtualMachineDeprecatedStatus(1);
+        (, , deprecated) = c3VMPricing.virtualMachineTypes(1);
+        assertFalse(deprecated, "Virtual machine type should not be deprecated");
+    }
+
+    function testUpdateVirtualMachineModelName() public {
+        string memory newName = "Advanced";
+        c3VMPricing.updateVirtualMachineModelName(1, newName);
+
+        (string memory modelName, , ) = c3VMPricing.virtualMachineTypes(1);
+        assertEq(modelName, newName, "Model name should be updated");
+    }
+
+    function testUpdateVirtualMachinePricePerHour() public {
+        uint256 newPrice = 20 wei;
+        c3VMPricing.updateVirtualMachinePricePerHour(1, newPrice);
+
+        (, uint256 pricePerHour, ) = c3VMPricing.virtualMachineTypes(1);
+        assertEq(pricePerHour, newPrice, "Price per hour should be updated");
     }
 }
 
