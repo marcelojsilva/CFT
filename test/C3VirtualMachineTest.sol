@@ -6,7 +6,7 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "../src/C3VirtualMachine.sol";
 import "../src/C3VirtualMachinePricing.sol";
 
-contract CFTTest is Test {
+contract C3VirtualMachineTest is Test {
     C3VirtualMachinePricing private c3VMPricing;
     C3VirtualMachine private c3VM;
     C3U private c3u;
