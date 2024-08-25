@@ -12,54 +12,61 @@ contract C3VirtualMachineTest is Test {
     C3U private c3u;
     address private owner;
     address private user;
-    uint256 private vmId;
+    uint256 private constant INITIAL_BALANCE = 1000 ether; // Use a larger initial balance
+    uint256 private constant VM_TYPE_ID = 1;
+    uint256 private constant PRICE_PER_HOUR = 0.1 ether; // Use a more realistic price
 
     function setUp() public {
         owner = address(this);
+        user = address(0x1234);
         
         // Deploy pricing contract
         c3VMPricing = new C3VirtualMachinePricing();
 
         // Create a virtual machine type
-        c3VMPricing.createVirtualMachineType(1, "Basic", 100 wei);
+        c3VMPricing.createVirtualMachineType(VM_TYPE_ID, "Basic", PRICE_PER_HOUR);
 
         c3u = new C3U();
 
         // Deploy the virtual machine contract
-        c3VM = new C3VirtualMachine(address(c3u), address(c3VMPricing));
+        c3VM = new C3VirtualMachine(address(c3u), address(c3VMPricing), 1000); // Add token per ETH rate
 
-        // Transfer tokens to the virtual machine contract
-        c3u.approve(address(c3VM), 1000 wei);
+        // Mint tokens to the owner and approve the VM contract
+        c3u.mint(owner, INITIAL_BALANCE);
+        c3u.approve(address(c3VM), INITIAL_BALANCE);
 
-        // Set initial balances
-        c3VM.depositTokens(1000 wei);
+        // Deposit tokens to the VM contract
+        c3VM.depositTokens(INITIAL_BALANCE);
     }
 
-    function testPriceExist() view public {
-        bool pricingExists = c3VMPricing.idExists(1);
+    function testPriceExist() public {
+        bool pricingExists = c3VMPricing.idExists(VM_TYPE_ID);
         assertTrue(pricingExists, "Pricing should exist");
     }
 
-    function testCreditShouldBe1000() view public {
+    function testInitialCredit() public {
         uint256 userCredits = c3VM.userCredits(owner);
-        assertEq(userCredits, 1000 wei, "User credits should be 1000");
+        assertEq(userCredits, INITIAL_BALANCE, "User credits should be equal to initial balance");
     }
 
     function testCreateVirtualMachine() public {
-        uint256 newVmId = c3VM.createVirtualMachine(1, 5);
+        uint256 hoursToRun = 5;
+        uint256 expectedCost = PRICE_PER_HOUR * hoursToRun;
+        uint256 initialCredits = c3VM.userCredits(owner);
+
+        uint256 newVmId = c3VM.createVirtualMachine(VM_TYPE_ID, hoursToRun);
         assertEq(newVmId, 1, "New VM ID should be 1");
 
-        (address vmOwner, , , ,) = c3VM.virtualMachines(newVmId);
+        (address vmOwner, , , , , , ,) = c3VM.virtualMachines(newVmId);
         assertEq(vmOwner, owner, "VM owner should be the contract creator");
     
         uint256 userCredits = c3VM.userCredits(owner);
-        assertEq(userCredits, 1000 - 100 * 5, "User credits should decrease by the price multiplied by the hours");
-
+        assertEq(userCredits, initialCredits - expectedCost, "User credits should decrease by the expected cost");
     }
     
     function testDepositTokens() public {
         uint256 initialCredits = c3VM.userCredits(owner);
-        uint256 depositAmount = 500 wei;
+        uint256 depositAmount = 500 ether;
 
         c3u.approve(address(c3VM), depositAmount);
         c3VM.depositTokens(depositAmount);
@@ -69,48 +76,50 @@ contract C3VirtualMachineTest is Test {
     }
 
     function testCannotWithdrawTokens() public {
-        uint256 withdrawAmount = 2000 wei;
+        uint256 withdrawAmount = INITIAL_BALANCE + 1 ether;
 
         vm.expectRevert("Insufficient balance to withdraw");
         c3VM.withdrawTokens(withdrawAmount);
     }
 
     function testCannotCreateVirtualMachineWithoutSufficientCredits() public {
-        uint256 excessiveHours = 20;
+        uint256 excessiveHours = INITIAL_BALANCE / PRICE_PER_HOUR + 1;
 
         vm.expectRevert("Insufficient balance to start virtual machine");
-        c3VM.createVirtualMachine(1, excessiveHours);
+        c3VM.createVirtualMachine(VM_TYPE_ID, excessiveHours);
     }
 
     function testToggleVirtualMachineDeprecatedStatus() public {
-        c3VMPricing.toggleVirtualMachineDeprecatedStatus(1);
-        (, , bool deprecated) = c3VMPricing.virtualMachineTypes(1);
+        c3VMPricing.toggleVirtualMachineDeprecatedStatus(VM_TYPE_ID);
+        (, , bool deprecated) = c3VMPricing.virtualMachineTypes(VM_TYPE_ID);
         assertTrue(deprecated, "Virtual machine type should be deprecated");
 
-        c3VMPricing.toggleVirtualMachineDeprecatedStatus(1);
-        (, , deprecated) = c3VMPricing.virtualMachineTypes(1);
+        c3VMPricing.toggleVirtualMachineDeprecatedStatus(VM_TYPE_ID);
+        (, , deprecated) = c3VMPricing.virtualMachineTypes(VM_TYPE_ID);
         assertFalse(deprecated, "Virtual machine type should not be deprecated");
     }
 
     function testUpdateVirtualMachineModelName() public {
         string memory newName = "Advanced";
-        c3VMPricing.updateVirtualMachineModelName(1, newName);
+        c3VMPricing.updateVirtualMachineModelName(VM_TYPE_ID, newName);
 
-        (string memory modelName, , ) = c3VMPricing.virtualMachineTypes(1);
+        (string memory modelName, , ) = c3VMPricing.virtualMachineTypes(VM_TYPE_ID);
         assertEq(modelName, newName, "Model name should be updated");
     }
 
     function testUpdateVirtualMachinePricePerHour() public {
-        uint256 newPrice = 20 wei;
-        c3VMPricing.updateVirtualMachinePricePerHour(1, newPrice);
+        uint256 newPrice = 0.2 ether;
+        c3VMPricing.updateVirtualMachinePricePerHour(VM_TYPE_ID, newPrice);
 
-        (, uint256 pricePerHour, ) = c3VMPricing.virtualMachineTypes(1);
+        (, uint256 pricePerHour, ) = c3VMPricing.virtualMachineTypes(VM_TYPE_ID);
         assertEq(pricePerHour, newPrice, "Price per hour should be updated");
     }
 }
 
 contract C3U is ERC20 {
-    constructor() ERC20("C3U", "C3U") {
-        _mint(msg.sender, 1000 * 10 ** 18);
+    constructor() ERC20("C3U", "C3U") {}
+
+    function mint(address to, uint256 amount) public {
+        _mint(to, amount);
     }
 }
