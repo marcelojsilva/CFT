@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import './C3VirtualMachinePricing.sol';
+import './C3ResourcePricing.sol';
 
 /// @title C3VirtualMachine
 /// @notice This contract manages the lifecycle of virtual machines, including creation, pausing, resuming, and stopping.
@@ -14,7 +14,7 @@ contract C3VirtualMachine {
     /// @dev Stores all relevant information about a virtual machine, including locked tokens
     struct VirtualMachine {
         address vmOwner;        // Owner of the virtual machine
-        uint256 vmType;         // Type of the virtual machine
+        uint256 resourceId;     // Resource id of the virtual machine
         uint256 startTime;      // Timestamp when the VM was last started or resumed
         uint256 totalHoursToRun; // Total hours the VM is supposed to run
         uint256 pricePerHour;   // Price per hour for running the VM
@@ -27,8 +27,8 @@ contract C3VirtualMachine {
     /// @notice Address of the ERC20 token used for payments
     address public immutable tokenAddress;
 
-    /// @notice Address of the VirtualMachinePricing contract
-    address public immutable vmPricing;
+    /// @notice Address of the ResourcePricing contract
+    address public immutable resourcePricing;
 
     /// @notice Address of the manager with special privileges
     address public immutable manager;
@@ -93,31 +93,32 @@ contract C3VirtualMachine {
 
     /// @notice Constructor to initialize the contract
     /// @param _tokenAddress The address of the ERC20 token contract
-    /// @param _vmPricing The address of the VirtualMachinePricing contract
+    /// @param _resourcePricing The address of the ResourcePricing contract
     /// @param _manager The address of the manager
-    constructor(address _tokenAddress, address _vmPricing, address _manager) {
+    constructor(address _tokenAddress, address _resourcePricing, address _manager) {
         require(_tokenAddress != address(0), "Invalid token address");
-        require(_vmPricing != address(0), "Invalid VM pricing address");
+        require(_resourcePricing != address(0), "Invalid resource pricing address");
         require(_manager != address(0), "Invalid manager address");
 
         tokenAddress = _tokenAddress;
-        vmPricing = _vmPricing;
+        resourcePricing = _resourcePricing;
         manager = _manager;
     }
 
     /// @notice Creates a new virtual machine
-    /// @param vmType The type of the virtual machine to create
+    /// @param resourceId The id of the virtual machine flavour to create
     /// @param totalHoursToRun The total hours the virtual machine is supposed to run
     /// @return The ID of the newly created virtual machine
     /// @dev Locks the required tokens for the duration of the VM's runtime
-    function createVirtualMachine(uint256 vmType, uint256 totalHoursToRun) public returns (uint256) {
+    function createVirtualMachine(uint256 resourceId, uint256 totalHoursToRun) public returns (uint256) {
         require(totalHoursToRun > 0, "Total hours to run must be greater than 0");
 
-        C3VirtualMachinePricing pricingContract = C3VirtualMachinePricing(vmPricing);
-        require(pricingContract.idExists(vmType), "Virtual machine type does not exist");
+        C3ResourcePricing pricingContract = C3ResourcePricing(resourcePricing);
+        require(pricingContract.idExists(resourceId), "Virtual machine resource id does not exist");
 
-        (, uint256 _pricePerHour, bool _deprecated) = pricingContract.virtualMachineTypes(vmType);
-        require(!_deprecated, "Virtual machine type is deprecated");
+        (, uint256 _pricePerHour, bool _deprecated, C3ResourcePricing.ResourceType _resourceType) = pricingContract.getResource(resourceId);
+        require(!_deprecated, "Virtual machine resource is deprecated");
+        require(_resourceType == C3ResourcePricing.ResourceType.VirtualMachine, "Resource is not a virtual machine");
 
         uint256 creditsToConsume = _pricePerHour * totalHoursToRun;
         address sender = msg.sender;
@@ -129,7 +130,7 @@ contract C3VirtualMachine {
 
         virtualMachines[nextId] = VirtualMachine({
             vmOwner: sender,
-            vmType: vmType,
+            resourceId: resourceId,
             startTime: block.timestamp,
             totalHoursToRun: totalHoursToRun,
             pricePerHour: _pricePerHour,
