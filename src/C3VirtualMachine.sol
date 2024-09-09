@@ -116,7 +116,10 @@ contract C3VirtualMachine {
     /// @param keyPairId The ID of the key pair to associate with the virtual machine
     /// @return The ID of the newly created virtual machine
     /// @dev Locks the required tokens for the duration of the VM's runtime
-    function createVirtualMachine(uint256 resourceId, uint256 totalHoursToRun, uint256 keyPairId) public returns (uint256) {
+    function createVirtualMachine(uint256 resourceId, uint256 totalHoursToRun, uint256 keyPairId)
+        public
+        returns (uint256)
+    {
         require(totalHoursToRun > 0, "Total hours to run must be greater than 0");
 
         C3ResourcePricing pricingContract = C3ResourcePricing(resourcePricing);
