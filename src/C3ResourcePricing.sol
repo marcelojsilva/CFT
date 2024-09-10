@@ -8,7 +8,8 @@ contract C3ResourcePricing {
     /// @notice Enum for defining different resource
     enum ResourceType {
         VirtualMachine,
-        Volume
+        Volume,
+        Other
     }
 
     /// @notice Structure defining a resource (VirtualMachine or Volume)
